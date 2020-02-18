@@ -1,0 +1,73 @@
+BOX_IMAGE = "Centos7"
+NODE_COUNT = 1
+MASTER_IP = "192.168.0.10"
+NEW_PASSSWORD = "asd123456"
+
+#k8s master 节点执行的脚本：kubeadm 部署 master 节点
+$mysqlscript = <<SCRIPT
+
+# 修改ssh支持密码登录
+sudo -s
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+systemctl restart sshd
+
+cp /vagrant/mysql-8.0.19-1.el7.x86_64.rpm-bundle.tar /opt/
+cp /vagrant/libaio-0.3.109-13.el7.x86_64.rpm /opt/
+
+cd /opt
+
+rpm -ivh libaio-0.3.109-13.el7.x86_64.rpm
+mkdir mysql8
+tar -xf mysql-8.0.19-1.el7.x86_64.rpm-bundle.tar -C mysql8
+
+yum install perl-* -y
+yum install net-tools -y
+yum install openssl-* -y
+
+cd mysql8
+
+# 卸载mariadb
+rpm -qa | grep mariadb | xargs rpm -e --nodeps
+
+#有顺序
+rpm -ivh mysql-community-common-8.0.19-1.el7.x86_64.rpm
+rpm -ivh mysql-community-libs-8.0.19-1.el7.x86_64.rpm
+rpm -ivh mysql-community-client-8.0.19-1.el7.x86_64.rpm
+rpm -ivh mysql-community-server-8.0.19-1.el7.x86_64.rpm
+
+rpm -ivh mysql-community-libs-compat-8.0.19-1.el7.x86_64.rpm
+rpm -ivh mysql-community-embedded-compat-8.0.19-1.el7.x86_64.rpm
+rpm -ivh mysql-community-devel-8.0.19-1.el7.x86_64.rpm
+rpm -ivh mysql-community-test-8.0.19-1.el7.x86_64.rpm
+
+mysqld --initialize --console
+chown -R mysql:mysql /var/lib/mysql/
+systemctl start mysqld
+
+# 修改mysql密码
+export password=`awk '/root@localhost/' /var/log/mysqld.log |  awk '{match($0,/root@localhost: (.*)/,a); print a[1]}'`
+mysql -u root -p"$password" -D mysql -se "alter USER 'root'@'localhost' IDENTIFIED BY '#{NEW_PASSSWORD}'" --connect-expired-password
+
+# 开启mysql远程登录
+mysql -u root -p"#{NEW_PASSSWORD}" -D mysql -se "update user set host = '%' where user='root'" --connect-expired-password
+mysql -u root -p"#{NEW_PASSSWORD}" -D mysql -se "flush privileges;" --connect-expired-password
+
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  config.vm.box = BOX_IMAGE
+  config.vm.box_check_update = false
+  config.vm.synced_folder ".", "/vagrant" 
+  config.vm.hostname = "mysql"
+  config.vm.network :private_network, ip: MASTER_IP
+  config.vm.provider :virtualbox do |vb|
+	vb.customize ["modifyvm", :id, "--cpus", "2"]
+	vb.customize ["modifyvm", :id, "--memory", "2048"]
+  end
+  config.vm.provision :shell, inline: $mysqlscript
+  config.vm.provider "virtualbox" do |l|
+    l.cpus = 2
+    l.memory = "2048"
+  end
+  
+end
