@@ -46,3 +46,41 @@ vagrant box add centos/7 CentOS-7-x86_64-Vagrant-1905_01.VirtualBox.box
      最终可下载的链接如下
 
      `https://app.vagrantup.com/centos/boxes/7/versions/1905.1/providers/virtualbox.box`
+
+
+
+如无特殊情况，都以centos作为基础系统，下载链接如下：
+
+`https://app.vagrantup.com/generic/boxes/centos7/versions/2.0.6/providers/virtualbox.box`
+
+```
+vagrant box add ./centos7.box --name generic/centos7
+```
+
+
+
+### 自定义Vagrant box
+
+```
+vagrant package --base virtualbox虚拟机实例的名字 --output 自定义.box
+vagrant box add 自定义.box --name 自定义名称
+```
+
+在这里遇到了一个问题，未找到根本解决方案，但有临时方案。
+
+##### 问题：使用新的box进行`vagrant up`启动时`vagrant ssh`失败
+
+临时解决方案：
+
+等待`vagrant up`的进程结束，再`vagrant ssh`，此时需要输入密码（一般是`vagrant`），进入控制台后执行以下命令
+
+```
+ wget --no-check-certificate https://raw.githubusercontent.com/hashicorp/vagrant/master/keys/vagrant.pub -O /home/vagrant/.ssh/authorized_keys  
+ chmod 0700 /home/vagrant/.ssh  
+ chmod 0600 /home/vagrant/.ssh/authorized_keys  
+ chown -R vagrant /home/vagrant/.ssh  
+```
+
+使用`exit`退出，执行`vagrant reload	`
+
+参考文章：https://www.gisremotesensing.com/2016/06/solution-vagrant-box-authentication.html

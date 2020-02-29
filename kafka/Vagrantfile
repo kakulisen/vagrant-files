@@ -1,0 +1,50 @@
+BOX_IMAGE = "generic/centos7"
+NODE_COUNT = 1
+NODE_IP_NW = "192.168.0."
+NEW_PASSSWORD = "asd123456"
+
+$sshscript = <<SCRIPT
+
+# 修改ssh支持密码登录
+sudo -s
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+systemctl restart sshd
+
+cd /opt
+
+# 安装JDK
+cp /vagrant/jdk-8u221-linux-x64.tar.gz /opt/
+tar -zxf jdk-8u221-linux-x64.tar.gz
+
+# 安装zookeeper
+cp /vagrant/apache-zookeeper-3.5.7-bin.tar.gz /opt/
+tar -zxf apache-zookeeper-3.5.7-bin.tar.gz
+cp apache-zookeeper-3.5.7-bin/conf/zoo_sample.cfg apache-zookeeper-3.5.7-bin/conf/zoo.cfg
+
+mkdir -p /tmp/zookeeper/data
+mkdir -p /tmp/zookeeper/log
+# 安装kafka
+
+
+
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  config.vm.box = BOX_IMAGE
+  config.vm.box_check_update = false
+  config.vm.synced_folder ".", "/vagrant" 
+
+  (1..NODE_COUNT).each do |i|
+      config.vm.define "node#{i}" do |subconfig|
+		subconfig.vm.box_check_update = false
+        subconfig.vm.hostname = "node#{i}"
+        subconfig.vm.network :private_network, ip: NODE_IP_NW + "#{i + 10}"
+		subconfig.vm.provider :virtualbox do |vb|
+			vb.customize ["modifyvm", :id, "--cpus", "2"]
+			vb.customize ["modifyvm", :id, "--memory", "2048"]
+		end
+        subconfig.vm.provision :shell, inline: $sshscript
+      end
+  end
+  
+end

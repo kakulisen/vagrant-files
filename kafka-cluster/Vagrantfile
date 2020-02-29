@@ -1,0 +1,36 @@
+BOX_IMAGE = "kafka-centos7"
+NODE_COUNT = 3
+NODE_IP_NW = "192.168.2."
+NEW_PASSSWORD = "asd123456"
+
+$sshscript = <<SCRIPT
+
+source /etc/profile
+
+# 关闭防火墙
+# TODO 安全
+systemctl stop firewalld
+systemctl disable firewalld
+
+# 清理旧数据
+mv /tmp/kafka-logs/ /tmp/kafka-logs_old
+
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  config.vm.box = BOX_IMAGE
+  config.vm.box_check_update = false
+  config.vm.synced_folder ".", "/vagrant" 
+
+  (1..NODE_COUNT).each do |i|
+      config.vm.define "node#{i}" do |subconfig|
+        subconfig.vm.hostname = "node#{i}"
+        subconfig.vm.network :private_network, ip: NODE_IP_NW + "#{i + 10}"
+		subconfig.vm.provider :virtualbox do |vb|
+			vb.customize ["modifyvm", :id, "--cpus", "2"]
+			vb.customize ["modifyvm", :id, "--memory", "2048"]
+		end
+      end
+  end
+  
+end
